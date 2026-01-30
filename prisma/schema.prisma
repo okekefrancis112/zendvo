@@ -7,13 +7,21 @@ generator client {
   provider = "prisma-client-js"
 }
 
+enum UserStatus {
+  unverified
+  active
+  suspended
+}
+
 model User {
   id                 String              @id @default(uuid())
   email              String              @unique
+  passwordHash       String
   name               String?
-  status             String              @default("pending")
+  status             UserStatus          @default(unverified)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
+  lastLogin          DateTime?
   emailVerifications EmailVerification[]
 }
 
