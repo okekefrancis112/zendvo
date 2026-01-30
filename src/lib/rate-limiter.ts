@@ -10,7 +10,7 @@ const store: RateLimitStore = {};
 export const isRateLimited = (
   ip: string,
   limit: number = 5,
-  windowMs: number = 3600000, // 1 hour
+  windowMs: number = 3600000,
 ): boolean => {
   const now = Date.now();
   const userData = store[ip];
