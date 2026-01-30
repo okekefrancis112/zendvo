@@ -1,0 +1,63 @@
+openapi: 3.0.0
+info:
+  title: Zendvo Auth API
+  version: 1.0.0
+  description: API for user registration and authentication
+
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      description: Creates a new user record with "unverified" status.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  minLength: 8
+                  example: "StrongP@ss123"
+                name:
+                  type: string
+                  example: "John Doe"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                        format: uuid
+                      email:
+                        type: string
+        "400":
+          description: Validation error (invalid email, weak password, missing fields)
+        "409":
+          description: Email already registered
+        "413":
+          description: Request body too large
+        "429":
+          description: Too many registration attempts
+        "500":
+          description: Internal server error

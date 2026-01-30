@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateOTP, storeOTP } from "@/server/services/otpService";
 import { sendVerificationEmail } from "@/server/services/emailService";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {
   try {
