@@ -108,45 +108,63 @@ export async function storeGiftOTP(giftId: string, otp: string) {
     data: {
       otpHash,
       otpExpiresAt: expiresAt,
+      otpAttempts: 0,
     },
   });
 }
 
-export async function verifyGiftOTP(giftId: string, otp: string) {
-  const gift = await prisma.gift.findUnique({
-    where: { id: giftId },
-  });
+const MAX_GIFT_OTP_ATTEMPTS = 5;
 
-  if (!gift || !gift.otpHash || !gift.otpExpiresAt) {
+export async function verifyGiftOTP(
+  gift: { id: string; otpHash: string | null; otpExpiresAt: Date | null; otpAttempts: number },
+  otp: string,
+) {
+  if (!gift.otpHash || !gift.otpExpiresAt) {
     return {
       success: false,
       message: "No verification code found for this gift.",
     };
   }
 
+  if (gift.otpAttempts >= MAX_GIFT_OTP_ATTEMPTS) {
+    return {
+      success: false,
+      message: "Maximum attempts exceeded. This gift has been locked.",
+      locked: true,
+    };
+  }
+
   if (new Date() > gift.otpExpiresAt) {
     return {
       success: false,
-      message: "Verification code has expired. Please request a new gift.",
+      message: "Verification code has expired. Please request a new one.",
     };
   }
 
   const isValid = await bcrypt.compare(otp, gift.otpHash);
 
   if (!isValid) {
+    await prisma.gift.update({
+      where: { id: gift.id },
+      data: { otpAttempts: gift.otpAttempts + 1 },
+    });
+
+    const remainingAttempts = MAX_GIFT_OTP_ATTEMPTS - (gift.otpAttempts + 1);
     return {
       success: false,
-      message: "Invalid verification code.",
+      message: `Invalid verification code. ${remainingAttempts} attempt${remainingAttempts !== 1 ? "s" : ""} remaining.`,
+      remainingAttempts,
+      locked: remainingAttempts <= 0,
     };
   }
 
-  // Mark as confirmed
   await prisma.gift.update({
-    where: { id: giftId },
+    where: { id: gift.id },
     data: {
       status: "confirmed",
       otpHash: null,
       otpExpiresAt: null,
+      otpAttempts: 0,
     },
   });
 
