@@ -97,3 +97,58 @@ export async function cleanupExpiredOTPs() {
   });
   return deleted.count;
 }
+
+export async function storeGiftOTP(giftId: string, otp: string) {
+  const saltRounds = 10;
+  const otpHash = await bcrypt.hash(otp, saltRounds);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  return await prisma.gift.update({
+    where: { id: giftId },
+    data: {
+      otpHash,
+      otpExpiresAt: expiresAt,
+    },
+  });
+}
+
+export async function verifyGiftOTP(giftId: string, otp: string) {
+  const gift = await prisma.gift.findUnique({
+    where: { id: giftId },
+  });
+
+  if (!gift || !gift.otpHash || !gift.otpExpiresAt) {
+    return {
+      success: false,
+      message: "No verification code found for this gift.",
+    };
+  }
+
+  if (new Date() > gift.otpExpiresAt) {
+    return {
+      success: false,
+      message: "Verification code has expired. Please request a new gift.",
+    };
+  }
+
+  const isValid = await bcrypt.compare(otp, gift.otpHash);
+
+  if (!isValid) {
+    return {
+      success: false,
+      message: "Invalid verification code.",
+    };
+  }
+
+  // Mark as confirmed
+  await prisma.gift.update({
+    where: { id: giftId },
+    data: {
+      status: "confirmed",
+      otpHash: null,
+      otpExpiresAt: null,
+    },
+  });
+
+  return { success: true, message: "Gift confirmed successfully!" };
+}

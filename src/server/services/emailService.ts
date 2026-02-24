@@ -291,3 +291,107 @@ function generateBaseTemplate({
 </html>
   `.trim();
 }
+
+export async function sendGiftConfirmationOTP(
+  email: string,
+  otp: string,
+  userName?: string,
+) {
+  const mailOptions = {
+    from: `"Zendvo" <${EMAIL_CONFIG.auth.user}>`,
+    to: email,
+    subject: "Confirm Your Gift - Zendvo",
+    html: generateGiftConfirmationTemplate(otp, userName),
+    text: `Your Zendvo gift confirmation code is: ${otp}\n\nThis code will expire in 10 minutes.\n\nIf you didn't request this code, please ignore this email.`,
+  };
+
+  try {
+    if (process.env.NODE_ENV === "development") {
+      console.log("=".repeat(50));
+      console.log("🎁 GIFT CONFIRMATION OTP (Development Mode)");
+      console.log("=".repeat(50));
+      console.log(`To: ${email}`);
+      console.log(`OTP Code: ${otp}`);
+      console.log(`Expires: 10 minutes`);
+      console.log("=".repeat(50));
+      return {
+        success: true,
+        messageId: "dev-mode",
+        message: "OTP logged to console (development mode)",
+      };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
+    return {
+      success: true,
+      messageId: info.messageId,
+      message: "Gift confirmation OTP sent successfully",
+    };
+  } catch (error) {
+    console.error("Error sending gift confirmation OTP:", error);
+    return {
+      success: false,
+      message: "Failed to send gift confirmation OTP",
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+function generateGiftConfirmationTemplate(otp: string, userName?: string): string {
+  const name = userName || "Valued User";
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your Gift - Zendvo</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f7fafc;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" style="width: 100%; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td style="padding: 40px 30px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px 8px 0 0;">
+              <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">🎁 Confirm Your Gift</h1>
+              <p style="margin: 10px 0 0 0; color: #e2e8f0; font-size: 16px;">Secure your gift with this one-time code</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="margin: 0 0 20px 0; color: #2d3748; font-size: 16px; line-height: 1.6;">Hi ${name},</p>
+              <p style="margin: 0 0 30px 0; color: #4a5568; font-size: 16px; line-height: 1.6;">You've initiated a gift transfer. To complete the process and ensure security, please use the verification code below:</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background-color: #edf2f7; border: 2px solid #e2e8f0; border-radius: 8px; padding: 20px;">
+                  <span style="font-size: 32px; font-weight: bold; color: #2d3748; letter-spacing: 4px;">${otp}</span>
+                </div>
+              </div>
+              
+              <p style="margin: 30px 0 20px 0; color: #718096; font-size: 14px; text-align: center;">This code will expire in <strong>10 minutes</strong></p>
+              
+              <div style="background-color: #f7fafc; border-left: 4px solid #667eea; padding: 20px; margin: 30px 0; border-radius: 4px;">
+                <p style="margin: 0; color: #4a5568; font-size: 14px; line-height: 1.6;"><strong>Security Note:</strong> Never share this code with anyone. Our team will never ask for your verification code.</p>
+              </div>
+              
+              <p style="margin: 30px 0 0 0; color: #4a5568; font-size: 16px; line-height: 1.6;">If you didn't initiate this gift transfer, please ignore this email or contact our support team immediately.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 30px; background-color: #f7fafc; border-radius: 0 0 8px 8px; text-align: center;">
+              <p style="margin: 0 0 10px 0; color: #a0aec0; font-size: 14px;">Questions? Contact our support team</p>
+              <p style="margin: 0; color: #a0aec0; font-size: 12px;">
+                Transforming digital money transfers into memorable experiences
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}

@@ -6,6 +6,7 @@ const PROTECTED_ROUTES = [
   "/api/user",
   "/api/auth/logout",
   "/api/auth/reset-password",
+  "/api/gifts",
 ];
 
 export async function middleware(request: NextRequest) {
