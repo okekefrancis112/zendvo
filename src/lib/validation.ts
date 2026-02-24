@@ -13,3 +13,12 @@ export const validatePassword = (password: string): boolean => {
 export const sanitizeInput = (input: string): string => {
   return input.trim();
 };
+
+export const validateAmount = (amount: number): boolean => {
+  return amount > 0 && amount <= 10000; // Assuming max 10000 for now
+};
+
+export const validateCurrency = (currency: string): boolean => {
+  const supportedCurrencies = ["USD", "EUR", "GBP", "NGN"]; // Add more as needed
+  return supportedCurrencies.includes(currency.toUpperCase());
+};
