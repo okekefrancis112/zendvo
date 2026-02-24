@@ -97,6 +97,7 @@ model Gift {
   status        GiftStatus @default(pending_otp)
   otpHash       String?
   otpExpiresAt  DateTime?
+  otpAttempts   Int        @default(0)
   transactionId String?    @unique
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt

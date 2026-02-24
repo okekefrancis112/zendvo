@@ -3,6 +3,7 @@ import {
   storeOTP,
   verifyOTP,
   cleanupExpiredOTPs,
+  verifyGiftOTP,
 } from "../src/server/services/otpService";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
@@ -17,6 +18,9 @@ jest.mock("@prisma/client", () => {
       deleteMany: jest.fn(),
     },
     user: {
+      update: jest.fn(),
+    },
+    gift: {
       update: jest.fn(),
     },
   };
@@ -163,6 +167,102 @@ describe("OTP Service", () => {
 
       expect(prisma.emailVerification.deleteMany).toHaveBeenCalled();
       expect(count).toBe(5);
+    });
+  });
+
+  describe("verifyGiftOTP", () => {
+    const validGift = {
+      id: "gift-123",
+      otpHash: "hashed-otp",
+      otpExpiresAt: new Date(Date.now() + 600000),
+      otpAttempts: 0,
+    };
+
+    it("should return success for valid gift OTP", async () => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      (prisma.gift.update as jest.Mock).mockResolvedValue({});
+
+      const result = await verifyGiftOTP(validGift, "123456");
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe("Gift OTP verified successfully!");
+      expect(prisma.gift.update).toHaveBeenCalledWith({
+        where: { id: "gift-123" },
+        data: {
+          status: "otp_verified",
+          otpHash: null,
+          otpExpiresAt: null,
+          otpAttempts: 0,
+        },
+      });
+    });
+
+    it("should fail if otpHash is null", async () => {
+      const result = await verifyGiftOTP(
+        { ...validGift, otpHash: null },
+        "123456",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("No verification code found");
+    });
+
+    it("should fail if otpExpiresAt is null", async () => {
+      const result = await verifyGiftOTP(
+        { ...validGift, otpExpiresAt: null },
+        "123456",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("No verification code found");
+    });
+
+    it("should fail if OTP has expired", async () => {
+      const result = await verifyGiftOTP(
+        { ...validGift, otpExpiresAt: new Date(Date.now() - 100000) },
+        "123456",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.message).toContain("expired");
+    });
+
+    it("should return locked if max attempts exceeded", async () => {
+      const result = await verifyGiftOTP(
+        { ...validGift, otpAttempts: 5 },
+        "123456",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.locked).toBe(true);
+      expect(result.message).toContain("locked");
+    });
+
+    it("should increment attempts on invalid OTP", async () => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      (prisma.gift.update as jest.Mock).mockResolvedValue({});
+
+      const result = await verifyGiftOTP(validGift, "000000");
+
+      expect(result.success).toBe(false);
+      expect(prisma.gift.update).toHaveBeenCalledWith({
+        where: { id: "gift-123" },
+        data: { otpAttempts: 1 },
+      });
+    });
+
+    it("should return correct remaining attempts count", async () => {
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      (prisma.gift.update as jest.Mock).mockResolvedValue({});
+
+      const result = await verifyGiftOTP(
+        { ...validGift, otpAttempts: 3 },
+        "000000",
+      );
+
+      expect(result.success).toBe(false);
+      expect(result.remainingAttempts).toBe(1);
+      expect(result.message).toContain("1 attempt remaining");
     });
   });
 });
