@@ -1,28 +1,22 @@
 import { NextRequest } from "next/server";
+import bcrypt from "bcryptjs";
 import { POST } from "@/app/api/auth/reset-password/route";
-import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import {
+  completePasswordReset,
+  findPasswordResetByToken,
+} from "@/server/db/authRepository";
 import { sendPasswordResetConfirmationEmail } from "@/server/services/emailService";
 
-// Mock dependencies
-jest.mock("@/lib/prisma", () => ({
-  prisma: {
-    passwordReset: {
-      findUnique: jest.fn(),
-      update: jest.fn(),
-    },
-    user: {
-      update: jest.fn(),
-    },
-    refreshToken: {
-      deleteMany: jest.fn(),
-    },
-    $transaction: jest.fn((promises) => Promise.all(promises)),
+jest.mock("bcryptjs", () => ({
+  __esModule: true,
+  default: {
+    hash: jest.fn(),
   },
 }));
 
-jest.mock("@/lib/auth", () => ({
-  hashPassword: jest.fn().mockResolvedValue("hashed-password"),
+jest.mock("@/server/db/authRepository", () => ({
+  findPasswordResetByToken: jest.fn(),
+  completePasswordReset: jest.fn(),
 }));
 
 jest.mock("@/server/services/emailService", () => ({
@@ -37,35 +31,35 @@ describe("POST /api/auth/reset-password", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (bcrypt.hash as jest.Mock).mockResolvedValue("hashed-password");
+    (completePasswordReset as jest.Mock).mockResolvedValue(undefined);
   });
 
   it("should reset password successfully with valid token and password", async () => {
-    const mockRequest = {
+    (findPasswordResetByToken as jest.Mock).mockResolvedValue({
       id: "reset-1",
       userId: "user-123",
       expiresAt: new Date(Date.now() + 10000),
       usedAt: null,
       user: { id: "user-123", email: "test@example.com", name: "Test User" },
-    };
+    });
 
-    (prisma.passwordReset.findUnique as jest.Mock).mockResolvedValue(
-      mockRequest,
-    );
-
-    const request = new NextRequest(
-      "http://localhost/api/auth/reset-password",
-      {
-        method: "POST",
-        body: JSON.stringify({ token: validToken, password: validPassword }),
-      },
-    );
+    const request = new NextRequest("http://localhost/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token: validToken, newPassword: validPassword }),
+    });
 
     const response = await POST(request);
     const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data.success).toBe(true);
-    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(bcrypt.hash).toHaveBeenCalledWith(validPassword, 12);
+    expect(completePasswordReset).toHaveBeenCalledWith({
+      resetId: "reset-1",
+      userId: "user-123",
+      passwordHash: "hashed-password",
+    });
     expect(sendPasswordResetConfirmationEmail).toHaveBeenCalledWith(
       "test@example.com",
       "Test User",
@@ -73,16 +67,13 @@ describe("POST /api/auth/reset-password", () => {
   });
 
   it("should return 400 for invalid token format", async () => {
-    const request = new NextRequest(
-      "http://localhost/api/auth/reset-password",
-      {
-        method: "POST",
-        body: JSON.stringify({
-          token: "invalid-token",
-          password: validPassword,
-        }),
-      },
-    );
+    const request = new NextRequest("http://localhost/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({
+        token: "invalid-token",
+        newPassword: validPassword,
+      }),
+    });
 
     const response = await POST(request);
     const data = await response.json();
@@ -92,13 +83,10 @@ describe("POST /api/auth/reset-password", () => {
   });
 
   it("should return 400 for weak password", async () => {
-    const request = new NextRequest(
-      "http://localhost/api/auth/reset-password",
-      {
-        method: "POST",
-        body: JSON.stringify({ token: validToken, password: "weak" }),
-      },
-    );
+    const request = new NextRequest("http://localhost/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token: validToken, newPassword: "weak" }),
+    });
 
     const response = await POST(request);
     const data = await response.json();
@@ -108,24 +96,18 @@ describe("POST /api/auth/reset-password", () => {
   });
 
   it("should return 400 if token is expired", async () => {
-    const mockRequest = {
+    (findPasswordResetByToken as jest.Mock).mockResolvedValue({
       id: "reset-1",
       userId: "user-123",
       expiresAt: new Date(Date.now() - 10000),
       usedAt: null,
-    };
+      user: { id: "user-123", email: "test@example.com", name: "Test User" },
+    });
 
-    (prisma.passwordReset.findUnique as jest.Mock).mockResolvedValue(
-      mockRequest,
-    );
-
-    const request = new NextRequest(
-      "http://localhost/api/auth/reset-password",
-      {
-        method: "POST",
-        body: JSON.stringify({ token: validToken, password: validPassword }),
-      },
-    );
+    const request = new NextRequest("http://localhost/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token: validToken, newPassword: validPassword }),
+    });
 
     const response = await POST(request);
     const data = await response.json();
@@ -135,24 +117,18 @@ describe("POST /api/auth/reset-password", () => {
   });
 
   it("should return 400 if token has already been used", async () => {
-    const mockRequest = {
+    (findPasswordResetByToken as jest.Mock).mockResolvedValue({
       id: "reset-1",
       userId: "user-123",
       expiresAt: new Date(Date.now() + 10000),
       usedAt: new Date(),
-    };
+      user: { id: "user-123", email: "test@example.com", name: "Test User" },
+    });
 
-    (prisma.passwordReset.findUnique as jest.Mock).mockResolvedValue(
-      mockRequest,
-    );
-
-    const request = new NextRequest(
-      "http://localhost/api/auth/reset-password",
-      {
-        method: "POST",
-        body: JSON.stringify({ token: validToken, password: validPassword }),
-      },
-    );
+    const request = new NextRequest("http://localhost/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token: validToken, newPassword: validPassword }),
+    });
 
     const response = await POST(request);
     const data = await response.json();
