@@ -19,6 +19,7 @@ const PROTECTED_API_ROUTES = [
   "/api/auth/logout",
   "/api/auth/reset-password",
   "/api/gifts",
+  "/api/dashboard",
 ];
 
 export async function middleware(request: NextRequest) {

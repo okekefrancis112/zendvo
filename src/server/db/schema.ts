@@ -1,4 +1,4 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable("User", {
   id: text("id").primaryKey(),
@@ -32,4 +32,30 @@ export const refreshTokens = sqliteTable("RefreshToken", {
   createdAt: text("createdAt").notNull(),
   revokedAt: text("revokedAt"),
   deviceInfo: text("deviceInfo"),
+});
+
+export const gifts = sqliteTable("Gift", {
+  id: text("id").primaryKey(),
+  senderId: text("senderId").notNull(),
+  recipientId: text("recipientId").notNull(),
+  amount: real("amount").notNull(),
+  currency: text("currency").notNull(),
+  message: text("message"),
+  template: text("template"),
+  status: text("status").notNull(),
+  otpHash: text("otpHash"),
+  otpExpiresAt: text("otpExpiresAt"),
+  otpAttempts: integer("otpAttempts").notNull().default(0),
+  transactionId: text("transactionId"),
+  createdAt: text("createdAt").notNull(),
+  updatedAt: text("updatedAt").notNull(),
+});
+
+export const wallets = sqliteTable("Wallet", {
+  id: text("id").primaryKey(),
+  userId: text("userId").notNull(),
+  currency: text("currency").notNull(),
+  balance: real("balance").notNull().default(0),
+  createdAt: text("createdAt").notNull(),
+  updatedAt: text("updatedAt").notNull(),
 });
