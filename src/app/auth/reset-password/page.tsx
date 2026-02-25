@@ -27,7 +27,12 @@ const ResetPasswordPage: React.FC = () => {
 
   useEffect(() => {
     setStrength(calculateStrength(password));
-  }, [password]);
+    if (confirmPassword && password !== confirmPassword) {
+      setError('Passwords do not match');
+    } else {
+      setError(null);
+    }
+  }, [password, confirmPassword]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -41,7 +46,6 @@ const ResetPasswordPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    setError(null);
 
     // Simulate API call
     try {
