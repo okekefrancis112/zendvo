@@ -78,6 +78,7 @@ model RefreshToken {
 enum GiftStatus {
   pending_otp
   otp_verified
+  pending_review
   confirmed
   completed
   sent
@@ -85,22 +86,25 @@ enum GiftStatus {
 }
 
 model Gift {
-  id            String     @id @default(uuid())
-  senderId      String
-  sender        User       @relation("SentGifts", fields: [senderId], references: [id])
-  recipientId   String
-  recipient     User       @relation("ReceivedGifts", fields: [recipientId], references: [id])
-  amount        Float
-  currency      String
-  message       String?
-  template      String?
-  status        GiftStatus @default(pending_otp)
-  otpHash       String?
-  otpExpiresAt  DateTime?
-  otpAttempts   Int        @default(0)
-  transactionId String?    @unique
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  id             String     @id @default(uuid())
+  senderId       String
+  sender         User       @relation("SentGifts", fields: [senderId], references: [id])
+  recipientId    String
+  recipient      User       @relation("ReceivedGifts", fields: [recipientId], references: [id])
+  amount         Float
+  currency       String
+  message        String?
+  template       String?
+  status         GiftStatus @default(pending_otp)
+  otpHash        String?
+  otpExpiresAt   DateTime?
+  otpAttempts    Int        @default(0)
+  transactionId  String?    @unique
+  hideAmount     Boolean    @default(false)
+  hideSender     Boolean    @default(false)
+  unlockDatetime DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@index([senderId])
   @@index([recipientId])
