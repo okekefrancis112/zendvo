@@ -19,6 +19,7 @@ const PROTECTED_API_ROUTES = [
   "/api/auth/logout",
   "/api/auth/reset-password",
   "/api/gifts",
+  "/api/dashboard",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -37,8 +38,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // API route protection (header-based with cookie fallback)
-  const isProtectedApi = PROTECTED_API_ROUTES.some((route) =>
-    pathname.startsWith(route),
+  const isProtectedApi = PROTECTED_API_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(route + "/"),
   );
 
   if (isProtectedApi) {

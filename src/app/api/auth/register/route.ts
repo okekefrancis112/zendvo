@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 import {
   validateEmail,
   validatePassword,
   sanitizeInput,
 } from "@/lib/validation";
 import { isRateLimited } from "@/lib/rate-limiter";
+import { createUser, findUserByEmail } from "@/server/db/authRepository";
+import { generateOTP, storeOTP } from "@/server/services/otpService";
+import { sendVerificationEmail } from "@/server/services/emailService";
+
+const BCRYPT_COST = 12;
 
 export async function POST(request: NextRequest) {
   try {
@@ -92,9 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Check for Duplicate Email
-    const existingUser = await prisma.user.findUnique({
-      where: { email: sanitizedEmail },
-    });
+    const existingUser = await findUserByEmail(sanitizedEmail);
 
     if (existingUser) {
       return NextResponse.json(
@@ -104,17 +106,28 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Hash Password
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
 
     // 9. Create User Record
-    const user = await prisma.user.create({
-      data: {
-        email: sanitizedEmail,
-        passwordHash,
-        name: name ? sanitizeInput(name) : null,
-        status: "unverified",
-      },
+    const user = await createUser({
+      email: sanitizedEmail,
+      passwordHash,
+      name: name ? sanitizeInput(name) : null,
     });
+
+    // Initiate email verification flow immediately after registration.
+    const otp = generateOTP();
+    await storeOTP(user.id, otp);
+
+    const emailResult = await sendVerificationEmail(
+      user.email,
+      otp,
+      user.name ?? undefined,
+    );
+
+    if (!emailResult.success) {
+      console.error("[REGISTER_VERIFICATION_EMAIL_ERROR]", emailResult.error);
+    }
 
     // 10. Return Success Response
     return NextResponse.json(
@@ -124,6 +137,7 @@ export async function POST(request: NextRequest) {
         data: {
           userId: user.id,
           email: user.email,
+          verificationInitiated: true,
         },
       },
       { status: 201 },

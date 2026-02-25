@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
-import { validatePassword, sanitizeInput } from "@/lib/validation";
+import bcrypt from "bcryptjs";
+import { validatePassword } from "@/lib/validation";
 import { sendPasswordResetConfirmationEmail } from "@/server/services/emailService";
+import {
+  completePasswordReset,
+  findPasswordResetByToken,
+} from "@/server/db/authRepository";
+
+const BCRYPT_COST = 12;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { token, password } = body;
+    const { token, password, newPassword } = body;
+    const nextPassword = newPassword ?? password;
 
-    if (!token || !password) {
+    if (!token || !nextPassword) {
       return NextResponse.json(
-        { success: false, error: "Token and password are required" },
+        { success: false, error: "Token and new password are required" },
         { status: 400 },
       );
     }
@@ -25,7 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!validatePassword(password)) {
+    if (!validatePassword(nextPassword)) {
       return NextResponse.json(
         {
           success: false,
@@ -39,10 +45,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const resetRequest = await prisma.passwordReset.findUnique({
-      where: { token },
-      include: { user: true },
-    });
+    const resetRequest = await findPasswordResetByToken(token);
 
     if (!resetRequest) {
       return NextResponse.json(
@@ -65,21 +68,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = await bcrypt.hash(nextPassword, BCRYPT_COST);
 
-    await prisma.$transaction([
-      prisma.user.update({
-        where: { id: resetRequest.userId },
-        data: { passwordHash: hashedPassword },
-      }),
-      prisma.passwordReset.update({
-        where: { id: resetRequest.id },
-        data: { usedAt: new Date() },
-      }),
-      prisma.refreshToken.deleteMany({
-        where: { userId: resetRequest.userId },
-      }),
-    ]);
+    await completePasswordReset({
+      resetId: resetRequest.id,
+      userId: resetRequest.userId,
+      passwordHash: hashedPassword,
+    });
 
     sendPasswordResetConfirmationEmail(
       resetRequest.user.email,
