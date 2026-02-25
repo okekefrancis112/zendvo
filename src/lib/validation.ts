@@ -22,3 +22,7 @@ export const validateCurrency = (currency: string): boolean => {
   const supportedCurrencies = ["USD", "EUR", "GBP", "NGN"]; // Add more as needed
   return supportedCurrencies.includes(currency.toUpperCase());
 };
+
+export const validateFutureDatetime = (date: Date): boolean => {
+  return !isNaN(date.getTime()) && date.getTime() > Date.now();
+};

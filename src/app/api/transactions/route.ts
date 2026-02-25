@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
 			select: {
 				id: true,
 				senderId: true,
+				senderName: true,
+				senderEmail: true,
 				amount: true,
 				currency: true,
 				status: true,
@@ -87,7 +89,13 @@ export async function GET(request: NextRequest) {
 
 	const transactions = gifts.map((gift) => {
 		const counterparty =
-			gift.senderId === userId ? gift.recipient : gift.sender;
+			gift.senderId === userId
+				? gift.recipient
+				: (gift.sender ?? {
+						id: null,
+						name: gift.senderName ?? "External Sender",
+						email: gift.senderEmail ?? null,
+					});
 
 		return {
 			id: gift.id,

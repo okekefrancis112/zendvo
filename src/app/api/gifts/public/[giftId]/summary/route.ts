@@ -63,7 +63,7 @@ export async function GET(
           },
           unlockDatetime: gift.unlockDatetime,
           message: gift.message,
-          senderName: gift.sender.name,
+          senderName: gift.sender?.name ?? gift.senderName ?? null,
         },
       },
       { status: 200 },

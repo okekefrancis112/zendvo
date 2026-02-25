@@ -87,8 +87,8 @@ enum GiftStatus {
 
 model Gift {
   id             String     @id @default(uuid())
-  senderId       String
-  sender         User       @relation("SentGifts", fields: [senderId], references: [id])
+  senderId       String?
+  sender         User?      @relation("SentGifts", fields: [senderId], references: [id])
   recipientId    String
   recipient      User       @relation("ReceivedGifts", fields: [recipientId], references: [id])
   amount         Float
@@ -103,12 +103,16 @@ model Gift {
   hideAmount     Boolean    @default(false)
   hideSender     Boolean    @default(false)
   unlockDatetime DateTime?
+  senderName     String?
+  senderEmail    String?
+  senderAvatar   String?
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
   @@index([senderId])
   @@index([recipientId])
   @@index([status])
+  @@index([senderEmail, recipientId])
 }
 
 model Wallet {

@@ -35,8 +35,8 @@ export async function POST(
             );
         }
 
-        // Ensure the requester is the sender
-        if (gift.senderId !== userId) {
+        // Ensure the requester is the sender (also rejects public gifts with null senderId)
+        if (!gift.senderId || gift.senderId !== userId) {
             return NextResponse.json(
                 { success: false, error: "Forbidden" },
                 { status: 403 },

@@ -32,6 +32,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public gift endpoints do not require authentication.
+  if (pathname.startsWith("/api/gifts/public")) {
+    return NextResponse.next();
+  }
+
   // Dashboard page route protection (cookie-based)
   if (pathname.startsWith("/dashboard")) {
     return handleDashboardRoute(request);
