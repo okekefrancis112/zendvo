@@ -26,3 +26,12 @@ export const validateCurrency = (currency: string): boolean => {
 export const validateFutureDatetime = (date: Date): boolean => {
   return !isNaN(date.getTime()) && date.getTime() > Date.now();
 };
+
+export const normalizePhoneNumber = (phone: string): string => {
+  return phone.replace(/[\s\-().]/g, "");
+};
+
+export const validatePhoneNumber = (phone: string): boolean => {
+  const normalized = normalizePhoneNumber(phone);
+  return /^\+?\d{7,15}$/.test(normalized);
+};

@@ -18,6 +18,9 @@ model User {
   email              String              @unique
   passwordHash       String
   name               String?
+  phoneNumber        String?             @unique
+  username           String?             @unique
+  avatarUrl          String?
   role               String              @default("user")
   status             UserStatus          @default(unverified)
   loginAttempts      Int                 @default(0)
